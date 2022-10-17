@@ -17,19 +17,15 @@ const currencyPrice = async (currency) => {
     return resultPrice.info['price']
 }
 
-// const usdBalance = async () => {
-//     const balances = await ftxExchange.fetchBalance()
-//     return balances.USD
-// }
-
 const lastBuyingOrder = async (currency, subaccount = '') => {
     const params = subaccount ? {'side': 'buy', 'subaccount': `${subaccount}`} : {'side': 'buy'}
     const orders = await ftxExchange.fetchOrders(currency, 0, 1, params)
-    const ordersBuyPrice = orders[0]?.info?.avgFillPrice
-    if (ordersBuyPrice === undefined) {
+    const buyPrice = orders[0]?.info?.avgFillPrice
+    const buyAmount = orders[0]?.info?.size
+    if (buyPrice === undefined) {
         return 0
     } else {
-        return ordersBuyPrice
+        return {buyPrice: buyPrice, buyAmount}
     }
 }
 
@@ -45,29 +41,22 @@ const tryBuying = async (currency, subaccount = '', fiatAmount, currentPrice) =>
     }
 }
 
-const shouldIBuy = async (currency, subaccount = '') => {
-    if (await currencyPrice(currency) < await lastBuyingOrder(currency, subaccount) * 0.98) {
-        return false
-    } else {
-        return true
-    }
-}
-
-const placeStopLoss = async (currency, subaccount = '', amount, price, triggerPrice) => {
-    const params = subaccount ? {'subaccount': `${subaccount}`, 'triggerPrice': `${triggerPrice}`} : {'triggerPrice': `${triggerPrice}`}
-    const stopLossResult = await ftxExchange.createOrder(currency, 'market', 'sell', amount, price, params)
-    return console.log(stopLossResult)
+const placeStopLoss = async (currency, subaccount = '', amount, price, stopLossPrice) => {
+    const params = subaccount ? {'subaccount': `${subaccount}`, 'stopLossPrice': `${stopLossPrice}`} : {'stopLossPrice': `${stopLossPrice}`}
+    return await ftxExchange.createOrder(currency, 'market', 'sell', amount, price, params)
 }
 
 const ftxBot = async (currency, subaccount, initialDeposit) => {
+
     const currentPrice = await currencyPrice(currency)
     const lastOrderInfos = await lastBuyingOrder(currency, subaccount)
 
-    if (await shouldIBuy(currency, subaccount) === true) {
+    if (lastOrderInfos.buyPrice * 1.01 < currentPrice) {
+        await placeStopLoss(currency, subaccount, lastOrderInfos.buyAmount, undefined, lastOrderInfos.buyPrice * 1.005)
         await tryBuying(currency, subaccount, initialDeposit, currentPrice)
     }
 }
 
-// console.log(await currencyPrice(currencyEth), await lastBuyingOrder(currencyEth) * 1.005)
-// ftxBot(currencyEth)
-placeStopLoss(currencyEth, undefined, 0.01, undefined, 1325.5)
+
+
+setInterval(ftxBot(currencyEth, '', 45), 300000)
