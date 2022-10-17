@@ -7,10 +7,7 @@ const ftxExchange = new ccxt.ftx({
 })
 
 const currencyEth = 'ETH-PERP'
-const currencyAtom = 'ATOM-PERP'
-const initialDepositVar = 50
 const marketLoading = await ftxExchange.loadMarkets()
-const subaccountVar = "les thunes"
 
 const currencyPrice = async (currency) => {
     const resultPrice = ftxExchange.market(currency)
